@@ -1,8 +1,8 @@
 
 # Importo este módulo para poder usar expresiones regulares y verifdicar el ticker
 import re
-# Importo este módulo para poder validar las fechas
-from datetime import datetime
+# Importo desde utils las fechas
+from utils import validar_fechas
 
 # Creo una clase para la aplicación
 class TickerApp:
