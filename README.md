@@ -11,6 +11,12 @@ conda activate tp-final-2024-FAS
 conda install python==3.10.13 jupyterlab==4.2.5
 ```
 
+# Instalación de las dependencias
+
+```
+pip install -r requirements.txt
+```
+
 
 
 
