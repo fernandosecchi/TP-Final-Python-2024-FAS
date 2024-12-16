@@ -30,22 +30,13 @@ class TickerApp:
     def solicitar_fechas(self):
         self.fecha_inicio = input("Ingrese fecha de inicio (YYYY/MM/DD): ")
         self.fecha_fin = input("Ingrese fecha de fin (YYYY/MM/DD): ")
-
-
-    def validar_fechas(self):
-        try:
-            # Intentar convertir las fechas a objetos datetime
-            fecha_inicio_dt = datetime.strptime(self.fecha_inicio, "%Y/%m/%d")
-            fecha_fin_dt = datetime.strptime(self.fecha_fin, "%Y/%m/%d")
-            # Verificar que la fecha de inicio sea anterior a la fecha de fin
-            if fecha_inicio_dt < fecha_fin_dt:
-                return True
-            else:
-                print("La fecha de inicio debe ser anterior a la fecha de fin.")
-                return False
-        except ValueError:
-            print("Formato de fecha inválido. Asegúrese de usar el formato YYYY/MM/DD.")
+        # Validar las fechas usando la función de utils
+        if not validar_fechas(self.fecha_inicio, self.fecha_fin):
+            print("Fechas inválidas. Asegúrese de que la fecha de inicio sea anterior a la fecha de fin y que estén en el formato correcto.")
             return False
+        return True
+
+    
 
     def mostrar_datos(self):
         print(f"Ticker solicitado: {self.ticker}")

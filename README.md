@@ -23,3 +23,15 @@ pip install -r requirements.txt
 ```
 python ./src/app.py
 ```
+
+### App terminal
+
+### App Web
+
+Librería https://streamlit.io/components
+
+Para instalar:
+pip install streamlit
+
+Para ejecutar
+python -m streamlit hello
