@@ -44,21 +44,16 @@ def show():
     """
     Renderiza la página principal de la aplicación.
     """
-    st.title("📈 Análisis de Acciones")
+    st.title("🔍 Nueva Consulta")
     
     # Inicializar el servicio
     service = TickerService()
     
-    # Mostrar resumen de tickers almacenados
-    with st.expander("📊 Tickers Almacenados"):
-        stored_tickers = service.get_stored_tickers_summary()
-        if stored_tickers:
-            for ticker_info in stored_tickers:
-                st.write(f"{ticker_info['ticker']} - {ticker_info['start_date']} hasta {ticker_info['end_date']}")
-        else:
-            st.info("No hay datos almacenados aún.")
-    
     # Crear un contenedor para los inputs
+    st.markdown("""
+    Ingrese los datos para analizar un nuevo ticker:
+    """)
+    
     with st.container():
         # Renderizar el input del ticker
         ticker = render_ticker_input()
@@ -120,6 +115,3 @@ def show():
         
         Los datos son obtenidos de Polygon.io y almacenados localmente para consultas futuras.
         """)
-
-if __name__ == "__main__":
-    show()

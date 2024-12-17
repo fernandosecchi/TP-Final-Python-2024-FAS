@@ -6,14 +6,19 @@ current_dir = os.path.dirname(__file__)
 parent_dir = os.path.join(current_dir, '..')
 sys.path.extend([parent_dir, current_dir])
 
-# Import after path modification
-from pages import home
+# Import views
+from views import home_view, historical_view
 
 # Configuración de la página
 st.set_page_config(
     page_title="Análisis de Acciones",
     page_icon="📈",
-    layout="wide"
+    layout="wide",
+    menu_items={
+        'Get Help': None,
+        'Report a bug': None,
+        'About': None
+    }
 )
 
 def main():
@@ -21,29 +26,33 @@ def main():
     Punto de entrada principal de la aplicación Streamlit.
     Maneja la navegación entre páginas y la configuración global.
     """
-    # Por ahora solo tenemos una página, pero esto permite escalar fácilmente
+    # Definir las páginas disponibles con sus íconos
     pages = {
-        "Inicio": home.show
+        "🏠 Inicio": home_view.show,
+        "📚 Historial": historical_view.show
     }
     
     # Sidebar para navegación
     with st.sidebar:
-        st.title("Navegación")
-        page = st.radio("Ir a", list(pages.keys()))
+        st.title("📈 Análisis de Acciones")
+        
+        # Navegación
+        st.subheader("Menú")
+        page = st.radio("", list(pages.keys()), label_visibility="collapsed")
         
         st.divider()
         
         # Información adicional en el sidebar
         st.markdown("""
-        ### Sobre la aplicación
-        Esta aplicación permite analizar datos históricos 
-        de acciones utilizando datos de mercado en tiempo real.
+        ### ℹ️ Sobre la aplicación
+        Análisis de datos históricos de acciones 
+        utilizando datos de mercado en tiempo real.
         
-        ### Desarrollado por
+        ### 👨‍💻 Desarrollado por
         Fernando Secchi
         
-        ### Trabajo Práctico
-        Trabájo Práctico Final ITBA
+        ### 📋 Trabajo Práctico
+        Trabajo Práctico Final ITBA
         """)
     
     # Renderizar la página seleccionada
