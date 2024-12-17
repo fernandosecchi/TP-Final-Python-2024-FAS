@@ -1,10 +1,11 @@
 import re
 from datetime import datetime
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Union
 import pandas as pd
 
 from src.api.api_finanzas import FinanceAPI
 from src.models.ticker_model import TickerModel
+from src.utils.validators import validate_dates
 
 class TickerService:
     """
@@ -30,8 +31,8 @@ class TickerService:
 
     def get_ticker_data(self, 
                        ticker: str, 
-                       start_date: datetime, 
-                       end_date: datetime,
+                       start_date: str, 
+                       end_date: str,
                        status_callback=None) -> Optional[tuple]:
         """
         Obtiene los datos del ticker para el período especificado.
@@ -52,6 +53,11 @@ class TickerService:
         if not self.validate_ticker(ticker):
             raise ValueError("Ticker inválido")
             
+        # Validar fechas usando el validador común
+        is_valid, error_msg = validate_dates(start_date, end_date)
+        if not is_valid:
+            raise ValueError(error_msg)
+            
         try:
             # Primero intentar obtener de la base de datos
             data = self.model.get_ticker_data(ticker, start_date, end_date)
@@ -62,20 +68,23 @@ class TickerService:
                 if status_callback:
                     status_callback(f"Obteniendo datos de {ticker} desde la API de Polygon.io...")
                 api_data = self.api.get_stock_data(ticker, start_date, end_date)
-                if api_data:
+                if api_data and api_data.get('results'):
                     # Guardar en la base de datos
                     self.model.save_ticker_data(ticker, api_data)
                     # Volver a obtener de la base de datos para tener formato consistente
                     data = self.model.get_ticker_data(ticker, start_date, end_date)
                     source = "api"
+                else:
+                    return None
             
             if data:
                 # Convertir a DataFrame para facilitar visualización
                 df = pd.DataFrame(data)
-                df['date'] = pd.to_datetime(df['date'])
+                # Convertir la columna date a datetime usando el formato correcto
+                df['date'] = pd.to_datetime(df['date'], format='%Y-%m-%d')
                 df.set_index('date', inplace=True)
                 return df, source
-                
+            
             return None
             
         except Exception as e:

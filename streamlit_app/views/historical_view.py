@@ -36,8 +36,9 @@ def show():
         df = df[df['ticker'].isin(selected_tickers)]
     
     # Convertir timestamps (milisegundos) a fechas formateadas
-    df['start_date'] = pd.to_datetime(df['start_date'].astype(float), unit='ms').dt.strftime('%d/%m/%Y')
-    df['end_date'] = pd.to_datetime(df['end_date'].astype(float), unit='ms').dt.strftime('%d/%m/%Y')
+    # Aseguramos que los timestamps sean numéricos antes de la conversión
+    df['start_date'] = pd.to_datetime(pd.to_numeric(df['start_date']), unit='ms').dt.strftime('%d/%m/%Y')
+    df['end_date'] = pd.to_datetime(pd.to_numeric(df['end_date']), unit='ms').dt.strftime('%d/%m/%Y')
     
     # Mostrar datos en una tabla interactiva
     st.dataframe(
@@ -84,18 +85,26 @@ def show():
                 # Obtener la fila correspondiente al ticker seleccionado
                 ticker_row = df[df['ticker'] == selected_ticker].iloc[0]
                 
-                # Obtener los timestamps originales del DataFrame antes de la conversión a formato de fecha
-                original_df = pd.DataFrame(stored_tickers)
-                original_row = original_df[original_df['ticker'] == selected_ticker].iloc[0]
-                
-                # Usar los timestamps originales para la consulta
-                latest_data = service.get_ticker_data(
-                    ticker=selected_ticker,
-                    start_date=datetime.fromtimestamp(int(original_row['start_date'])/1000),
-                    end_date=datetime.fromtimestamp(int(original_row['end_date'])/1000)
-                )
-                
-                if latest_data is not None:
+                try:
+                    # Obtener los timestamps originales del DataFrame antes de la conversión a formato de fecha
+                    original_df = pd.DataFrame(stored_tickers)
+                    original_row = original_df[original_df['ticker'] == selected_ticker].iloc[0]
+                    
+                    # Convertir timestamps a datetime asegurando que sean enteros
+                    start_timestamp = int(float(original_row['start_date']))
+                    end_timestamp = int(float(original_row['end_date']))
+                    
+                    # Usar los timestamps originales para la consulta
+                    latest_data = service.get_ticker_data(
+                        ticker=selected_ticker,
+                        start_date=datetime.fromtimestamp(start_timestamp/1000),
+                        end_date=datetime.fromtimestamp(end_timestamp/1000)
+                    )
+                    
+                    if latest_data is None:
+                        st.warning(f"No se encontraron datos para {selected_ticker} en el período seleccionado. Por favor, intente con otro período o verifique el símbolo del ticker.")
+                        return
+                    
                     processed_data = service.process_ticker_data(latest_data)
                     
                     # Mostrar información del período consultado
@@ -114,5 +123,12 @@ def show():
                     st.subheader("Gráfico de Precios")
                     df_plot = processed_data['data']
                     st.line_chart(df_plot['close'])
+                    
+                except ValueError as e:
+                    st.error(f"Error al procesar los datos: {str(e)}")
+                    return
+                except Exception as e:
+                    st.error(f"Error inesperado al obtener datos de {selected_ticker}: {str(e)}")
+                    return
             except Exception as e:
                 st.error(f"Error al cargar los datos detallados: {str(e)}")

@@ -17,7 +17,7 @@ class FinanceAPI:
         if not self.api_key:
             raise ValueError("POLYGON_API_KEY no está configurada en las variables de entorno")
 
-    def get_stock_data(self, ticker: str, start_date: datetime, end_date: datetime) -> Optional[Dict[str, Any]]:
+    def get_stock_data(self, ticker: str, start_date: str, end_date: str) -> Optional[Dict[str, Any]]:
         """
         Obtiene datos históricos de acciones desde Polygon.io
         
@@ -30,9 +30,9 @@ class FinanceAPI:
             Optional[Dict[str, Any]]: Datos de la acción o None si hay error
         """
         try:
-            # Formatear fechas para la API
-            start_str = start_date.strftime('%Y-%m-%d')
-            end_str = end_date.strftime('%Y-%m-%d')
+            # Las fechas ya vienen en formato YYYY-MM-DD
+            start_str = start_date
+            end_str = end_date
             
             # Construir URL
             endpoint = f"/aggs/ticker/{ticker}/range/1/day/{start_str}/{end_str}"
@@ -44,15 +44,26 @@ class FinanceAPI:
             
             data = response.json()
             
-            if data['status'] == 'OK' and data.get('results'):
-                return data
-            else:
-                print(f"No se encontraron datos para {ticker}")
+            if response.status_code == 429:
+                print(f"Error: Límite de API excedido para {ticker}")
                 return None
                 
+            if data.get('status') == 'ERROR':
+                print(f"Error de API para {ticker}: {data.get('error')}")
+                return None
+                
+            if not data.get('results'):
+                print(f"No se encontraron datos para {ticker} en el período {start_str} a {end_str}")
+                return None
+                
+            return data
+                
         except requests.exceptions.RequestException as e:
-            print(f"Error al obtener datos de la API: {str(e)}")
+            print(f"Error de conexión con la API: {str(e)}")
+            return None
+        except ValueError as e:
+            print(f"Error al procesar la respuesta JSON: {str(e)}")
             return None
         except Exception as e:
-            print(f"Error inesperado: {str(e)}")
+            print(f"Error inesperado al obtener datos de {ticker}: {str(e)}")
             return None

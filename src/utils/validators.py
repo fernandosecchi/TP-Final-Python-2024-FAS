@@ -1,30 +1,59 @@
-from datetime import datetime
+from datetime import datetime, date
 from typing import Union, Tuple
 
-def validate_dates(start_date: Union[str, datetime], 
-                  end_date: Union[str, datetime]) -> bool:
+def validate_dates(start_date: Union[str, datetime, date], 
+                  end_date: Union[str, datetime, date]) -> Tuple[bool, str]:
     """
-    Valida que las fechas tengan el formato correcto y que la fecha de inicio
-    sea anterior a la fecha de fin.
+    Valida que las fechas tengan el formato correcto, que la fecha de inicio
+    sea anterior a la fecha de fin y que ninguna sea futura.
     
     Args:
         start_date (Union[str, datetime]): Fecha de inicio
         end_date (Union[str, datetime]): Fecha de fin
         
     Returns:
-        bool: True si las fechas son válidas, False en caso contrario
+        Tuple[bool, str]: (True, "") si las fechas son válidas, 
+                         (False, mensaje_error) en caso contrario
     """
     try:
-        # Si las fechas son strings, convertirlas a datetime
+        # Convertir fechas a datetime para comparación consistente
         if isinstance(start_date, str):
-            start_date = datetime.strptime(start_date, "%Y-%m-%d")
+            try:
+                start_date = datetime.strptime(start_date, "%Y-%m-%d")
+            except ValueError:
+                try:
+                    start_date = datetime.strptime(start_date, "%d/%m/%Y")
+                except ValueError:
+                    return False, "Formato de fecha inválido para la fecha de inicio (use DD/MM/YYYY o YYYY-MM-DD)"
+        elif isinstance(start_date, date):
+            start_date = datetime.combine(start_date, datetime.min.time())
+                    
         if isinstance(end_date, str):
-            end_date = datetime.strptime(end_date, "%Y-%m-%d")
+            try:
+                end_date = datetime.strptime(end_date, "%Y-%m-%d")
+            except ValueError:
+                try:
+                    end_date = datetime.strptime(end_date, "%d/%m/%Y")
+                except ValueError:
+                    return False, "Formato de fecha inválido para la fecha de fin (use DD/MM/YYYY o YYYY-MM-DD)"
+        elif isinstance(end_date, date):
+            end_date = datetime.combine(end_date, datetime.max.time())
+        
+        current_date = datetime.now()
+        
+        # Verificar que ninguna fecha sea futura
+        if start_date > current_date:
+            return False, "La fecha de inicio no puede ser futura"
+        if end_date > current_date:
+            return False, "La fecha de fin no puede ser futura"
             
         # Verificar que la fecha de inicio sea anterior a la fecha de fin
-        return start_date < end_date
+        if start_date >= end_date:
+            return False, "La fecha de inicio debe ser anterior a la fecha de fin"
+            
+        return True, ""
     except (ValueError, TypeError):
-        return False
+        return False, "Formato de fecha inválido"
 
 def validate_api_response(response: dict) -> Tuple[bool, str]:
     """

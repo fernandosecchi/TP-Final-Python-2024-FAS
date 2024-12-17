@@ -88,7 +88,7 @@ class TickerModel:
             
             conn.commit()
 
-    def get_ticker_data(self, ticker: str, start_date: datetime, end_date: datetime) -> Optional[List[Dict[str, Any]]]:
+    def get_ticker_data(self, ticker: str, start_date: str, end_date: str) -> Optional[List[Dict[str, Any]]]:
         """
         Obtiene los datos del ticker para un rango de fechas
         
@@ -104,12 +104,6 @@ class TickerModel:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             
-            # Asegurar que las fechas sean datetime y no date
-            if not isinstance(start_date, datetime):
-                start_date = datetime.combine(start_date, datetime.min.time())
-            if not isinstance(end_date, datetime):
-                end_date = datetime.combine(end_date, datetime.max.time())
-            
             cursor.execute('''
                 SELECT * FROM ticker_data
                 WHERE ticker = ? 
@@ -117,8 +111,8 @@ class TickerModel:
                 ORDER BY date ASC
             ''', (
                 ticker,
-                start_date.strftime('%Y-%m-%d'),
-                end_date.strftime('%Y-%m-%d')
+                start_date,
+                end_date
             ))
             
             rows = cursor.fetchall()

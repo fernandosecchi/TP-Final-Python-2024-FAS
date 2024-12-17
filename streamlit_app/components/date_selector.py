@@ -1,5 +1,5 @@
 import streamlit as st
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 from src.utils.validators import validate_dates
 
 def render_date_selector():
@@ -11,20 +11,10 @@ def render_date_selector():
     # Crear dos columnas para las fechas
     col1, col2 = st.columns(2)
     
-    # Configurar fechas por defecto
-    fecha_fin_default = date.today()
-    # Si es lunes, usar el viernes anterior como fecha fin por defecto
-    if fecha_fin_default.weekday() == 0:  # 0 = Lunes
-        fecha_fin_default = fecha_fin_default - timedelta(days=3)
-    # Si es domingo, usar el viernes anterior
-    elif fecha_fin_default.weekday() == 6:  # 6 = Domingo
-        fecha_fin_default = fecha_fin_default - timedelta(days=2)
-    # Si es sábado, usar el viernes
-    elif fecha_fin_default.weekday() == 5:  # 5 = Sábado
-        fecha_fin_default = fecha_fin_default - timedelta(days=1)
-    
-    # Fecha inicio por defecto: 3 meses atrás
-    fecha_inicio_default = fecha_fin_default - timedelta(days=90)
+    # Configurar fechas por defecto (ayer y anteayer)
+    hoy = date.today()
+    fecha_fin_default = hoy - timedelta(days=1)  # ayer
+    fecha_inicio_default = hoy - timedelta(days=2)  # anteayer
     
     # En la primera columna: fecha de inicio
     with col1:
@@ -32,7 +22,7 @@ def render_date_selector():
             "Fecha de inicio",
             value=fecha_inicio_default,
             max_value=fecha_fin_default,
-            help="Seleccione la fecha de inicio del análisis",
+            help="Seleccione la fecha de inicio del análisis (no puede ser futura)",
             format="DD/MM/YYYY"  # Formato argentino
         )
     
@@ -42,14 +32,19 @@ def render_date_selector():
             "Fecha de fin",
             value=fecha_fin_default,
             min_value=fecha_inicio,
-            max_value=date.today(),
-            help="Seleccione la fecha final del análisis (días hábiles)",
+            max_value=hoy,  # No permitir fechas futuras
+            help="Seleccione la fecha final del análisis (no puede ser futura)",
             format="DD/MM/YYYY"  # Formato argentino
         )
 
     # Validar las fechas
-    if not validate_dates(fecha_inicio, fecha_fin):
-        st.error("⚠️ La fecha de inicio debe ser anterior a la fecha final")
+    is_valid, error_msg = validate_dates(fecha_inicio, fecha_fin)
+    if not is_valid:
+        st.error(f"⚠️ {error_msg}")
         return None, None
+    
+    # Formatear las fechas como strings en formato YYYY-MM-DD
+    fecha_inicio_str = fecha_inicio.strftime('%Y-%m-%d')
+    fecha_fin_str = fecha_fin.strftime('%Y-%m-%d')
         
-    return fecha_inicio, fecha_fin
+    return fecha_inicio_str, fecha_fin_str
