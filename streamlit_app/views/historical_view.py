@@ -34,13 +34,26 @@ def show():
     if selected_tickers:
         df = df[df['ticker'].isin(selected_tickers)]
     
+    # Formatear las fechas al estilo argentino
+    df['start_date'] = pd.to_datetime(df['start_date'], unit='ms').dt.strftime('%d/%m/%Y')
+    df['end_date'] = pd.to_datetime(df['end_date'], unit='ms').dt.strftime('%d/%m/%Y')
+    
     # Mostrar datos en una tabla interactiva
     st.dataframe(
         df,
         column_config={
-            "ticker": "Ticker",
-            "start_date": "Fecha Inicio",
-            "end_date": "Fecha Fin"
+            "ticker": st.column_config.TextColumn(
+                "Ticker",
+                help="Símbolo del ticker"
+            ),
+            "start_date": st.column_config.TextColumn(
+                "Fecha Inicio",
+                help="Fecha de inicio de la consulta"
+            ),
+            "end_date": st.column_config.TextColumn(
+                "Fecha Fin",
+                help="Fecha final de la consulta"
+            )
         },
         hide_index=True
     )
@@ -55,8 +68,8 @@ def show():
         with col2:
             st.metric("Tickers Únicos", df['ticker'].nunique())
         with col3:
-            st.metric("Período más Consultado", 
-                     df.groupby(['start_date', 'end_date']).size().idxmax()[0])
+            periodo_mas_consultado = df.groupby(['start_date', 'end_date']).size().idxmax()[0]
+            st.metric("Período más Consultado", periodo_mas_consultado)
         
         # Mostrar datos detallados por ticker seleccionado
         st.subheader("📈 Datos Detallados")
