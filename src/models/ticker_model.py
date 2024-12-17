@@ -110,21 +110,15 @@ class TickerModel:
             if not isinstance(end_date, datetime):
                 end_date = datetime.combine(end_date, datetime.max.time())
             
-            # Convertir las fechas a timestamps en milisegundos para la consulta
-            start_ts = int(start_date.timestamp() * 1000)
-            end_ts = int(end_date.timestamp() * 1000)
-            
             cursor.execute('''
-                SELECT td.* FROM ticker_data td
-                JOIN ticker_ranges tr ON td.ticker = tr.ticker
-                WHERE td.ticker = ? 
-                AND tr.start_date >= ? 
-                AND tr.end_date <= ?
-                ORDER BY td.date ASC
+                SELECT * FROM ticker_data
+                WHERE ticker = ? 
+                AND date BETWEEN ? AND ?
+                ORDER BY date ASC
             ''', (
                 ticker,
-                start_ts,
-                end_ts
+                start_date.strftime('%Y-%m-%d'),
+                end_date.strftime('%Y-%m-%d')
             ))
             
             rows = cursor.fetchall()

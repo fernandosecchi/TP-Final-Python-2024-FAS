@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+from datetime import datetime
 from src.services.ticker_service import TickerService
 
 def show():
@@ -80,19 +81,25 @@ def show():
         
         if selected_ticker:
             try:
-                # Obtener los datos más recientes para este ticker
-                # Convertir las fechas de string a datetime y asegurar que sean datetime, no date
-                start_date = pd.to_datetime(df[df['ticker'] == selected_ticker]['start_date'].iloc[0], format='%d/%m/%Y').to_pydatetime()
-                end_date = pd.to_datetime(df[df['ticker'] == selected_ticker]['end_date'].iloc[0], format='%d/%m/%Y').to_pydatetime()
+                # Obtener la fila correspondiente al ticker seleccionado
+                ticker_row = df[df['ticker'] == selected_ticker].iloc[0]
                 
+                # Obtener los timestamps originales del DataFrame antes de la conversión a formato de fecha
+                original_df = pd.DataFrame(stored_tickers)
+                original_row = original_df[original_df['ticker'] == selected_ticker].iloc[0]
+                
+                # Usar los timestamps originales para la consulta
                 latest_data = service.get_ticker_data(
                     ticker=selected_ticker,
-                    start_date=start_date,
-                    end_date=end_date
+                    start_date=datetime.fromtimestamp(int(original_row['start_date'])/1000),
+                    end_date=datetime.fromtimestamp(int(original_row['end_date'])/1000)
                 )
                 
                 if latest_data is not None:
                     processed_data = service.process_ticker_data(latest_data)
+                    
+                    # Mostrar información del período consultado
+                    st.info(f"Mostrando datos históricos para {selected_ticker} del período: {ticker_row['start_date']} al {ticker_row['end_date']}")
                     
                     # Mostrar resumen
                     col1, col2 = st.columns(2)
@@ -102,5 +109,10 @@ def show():
                     with col2:
                         st.metric("Precio Máximo", f"${processed_data['summary']['max_price']:.2f}")
                         st.metric("Volumen Total", f"{processed_data['summary']['total_volume']:,.0f}")
+                    
+                    # Mostrar gráfico de precios
+                    st.subheader("Gráfico de Precios")
+                    df_plot = processed_data['data']
+                    st.line_chart(df_plot['close'])
             except Exception as e:
                 st.error(f"Error al cargar los datos detallados: {str(e)}")
