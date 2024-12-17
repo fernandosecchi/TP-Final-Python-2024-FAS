@@ -74,8 +74,12 @@ class TickerModel:
                 ))
             
             # Actualizar o insertar el rango de fechas usando timestamps en milisegundos
-            start_timestamp = data['results'][0]['t']  # Ya está en milisegundos
-            end_timestamp = data['results'][-1]['t']   # Ya está en milisegundos
+            timestamp1 = data['results'][0]['t']  # Ya está en milisegundos
+            timestamp2 = data['results'][-1]['t']  # Ya está en milisegundos
+            
+            # Asegurar que start_date sea el timestamp menor
+            start_timestamp = min(timestamp1, timestamp2)
+            end_timestamp = max(timestamp1, timestamp2)
             
             cursor.execute('''
                 INSERT OR REPLACE INTO ticker_ranges (ticker, start_date, end_date)
@@ -135,3 +139,21 @@ class TickerModel:
             cursor.execute('SELECT * FROM ticker_ranges ORDER BY ticker')
             
             return [dict(row) for row in cursor.fetchall()]
+            
+    def delete_ticker_data(self, ticker: str) -> None:
+        """
+        Elimina todos los datos de un ticker específico
+        
+        Args:
+            ticker (str): El ticker cuyos datos se eliminarán
+        """
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            
+            # Eliminar datos históricos
+            cursor.execute('DELETE FROM ticker_data WHERE ticker = ?', (ticker,))
+            
+            # Eliminar registro del rango de fechas
+            cursor.execute('DELETE FROM ticker_ranges WHERE ticker = ?', (ticker,))
+            
+            conn.commit()

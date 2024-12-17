@@ -90,19 +90,28 @@ def show():
                     original_df = pd.DataFrame(stored_tickers)
                     original_row = original_df[original_df['ticker'] == selected_ticker].iloc[0]
                     
-                    # Convertir timestamps a datetime asegurando que sean enteros
-                    start_timestamp = int(float(original_row['start_date']))
-                    end_timestamp = int(float(original_row['end_date']))
+                    # Asegurarnos de que start_date sea anterior a end_date
+                    timestamp_start = int(float(original_row['start_date']))
+                    timestamp_end = int(float(original_row['end_date']))
                     
-                    # Usar los timestamps originales para la consulta
-                    latest_data = service.get_ticker_data(
+                    # Convertir timestamps a fechas en formato YYYY-MM-DD
+                    if timestamp_start <= timestamp_end:
+                        start_date = datetime.fromtimestamp(timestamp_start/1000).strftime('%Y-%m-%d')
+                        end_date = datetime.fromtimestamp(timestamp_end/1000).strftime('%Y-%m-%d')
+                    else:
+                        # Si las fechas están invertidas, las intercambiamos
+                        start_date = datetime.fromtimestamp(timestamp_end/1000).strftime('%Y-%m-%d')
+                        end_date = datetime.fromtimestamp(timestamp_start/1000).strftime('%Y-%m-%d')
+                    
+                    # Usar las fechas formateadas para obtener datos históricos
+                    latest_data = service.get_historical_data(
                         ticker=selected_ticker,
-                        start_date=datetime.fromtimestamp(start_timestamp/1000),
-                        end_date=datetime.fromtimestamp(end_timestamp/1000)
+                        start_date=start_date,
+                        end_date=end_date
                     )
                     
                     if latest_data is None:
-                        st.warning(f"No se encontraron datos para {selected_ticker} en el período seleccionado. Por favor, intente con otro período o verifique el símbolo del ticker.")
+                        st.warning(f"No hay datos históricos almacenados para {selected_ticker} en el período seleccionado.")
                         return
                     
                     processed_data = service.process_ticker_data(latest_data)

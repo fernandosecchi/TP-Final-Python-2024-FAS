@@ -11,10 +11,10 @@ def render_date_selector():
     # Crear dos columnas para las fechas
     col1, col2 = st.columns(2)
     
-    # Configurar fechas por defecto (ayer y anteayer)
+    # Configurar fechas por defecto (últimos 7 días)
     hoy = date.today()
     fecha_fin_default = hoy - timedelta(days=1)  # ayer
-    fecha_inicio_default = hoy - timedelta(days=2)  # anteayer
+    fecha_inicio_default = hoy - timedelta(days=7)  # hace una semana
     
     # En la primera columna: fecha de inicio
     with col1:
@@ -22,7 +22,7 @@ def render_date_selector():
             "Fecha de inicio",
             value=fecha_inicio_default,
             max_value=fecha_fin_default,
-            help="Seleccione la fecha de inicio del análisis (no puede ser futura)",
+            help="Seleccione la fecha de inicio del análisis (debe ser anterior a la fecha actual)",
             format="DD/MM/YYYY"  # Formato argentino
         )
     
@@ -33,7 +33,7 @@ def render_date_selector():
             value=fecha_fin_default,
             min_value=fecha_inicio,
             max_value=hoy,  # No permitir fechas futuras
-            help="Seleccione la fecha final del análisis (no puede ser futura)",
+            help="Seleccione la fecha final del análisis (debe ser anterior o igual a la fecha actual)",
             format="DD/MM/YYYY"  # Formato argentino
         )
 

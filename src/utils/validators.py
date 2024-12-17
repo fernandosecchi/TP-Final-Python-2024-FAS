@@ -39,13 +39,13 @@ def validate_dates(start_date: Union[str, datetime, date],
         elif isinstance(end_date, date):
             end_date = datetime.combine(end_date, datetime.max.time())
         
-        current_date = datetime.now()
+        current_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
         
         # Verificar que ninguna fecha sea futura
-        if start_date > current_date:
-            return False, "La fecha de inicio no puede ser futura"
-        if end_date > current_date:
-            return False, "La fecha de fin no puede ser futura"
+        if start_date.date() > current_date.date():
+            return False, f"La fecha de inicio ({start_date.strftime('%d/%m/%Y')}) no puede ser futura. La fecha actual es {current_date.strftime('%d/%m/%Y')}"
+        if end_date.date() > current_date.date():
+            return False, f"La fecha de fin ({end_date.strftime('%d/%m/%Y')}) no puede ser futura. La fecha actual es {current_date.strftime('%d/%m/%Y')}"
             
         # Verificar que la fecha de inicio sea anterior a la fecha de fin
         if start_date >= end_date:
