@@ -38,7 +38,12 @@ def main():
         
         # Navegación
         st.subheader("Menú")
-        page = st.radio("", list(pages.keys()), label_visibility="collapsed")
+        page = st.radio(
+            "Seleccione una página",
+            options=list(pages.keys()),
+            label_visibility="collapsed",
+            key="navigation"
+        )
         
         st.divider()
         
