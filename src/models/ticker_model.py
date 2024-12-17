@@ -32,12 +32,12 @@ class TickerModel:
                 )
             ''')
             
-            # Tabla para almacenar el rango de fechas por ticker
+            # Tabla para almacenar el rango de fechas por ticker (usando timestamps en milisegundos)
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS ticker_ranges (
                     ticker TEXT PRIMARY KEY,
-                    start_date TEXT NOT NULL,
-                    end_date TEXT NOT NULL
+                    start_date INTEGER NOT NULL,
+                    end_date INTEGER NOT NULL
                 )
             ''')
             
@@ -56,14 +56,15 @@ class TickerModel:
             
             # Guardar cada punto de datos
             for result in data['results']:
-                date = datetime.fromtimestamp(result['t']/1000).strftime('%Y-%m-%d')
+                timestamp = result['t']  # Ya está en milisegundos
+                date_str = datetime.fromtimestamp(timestamp/1000).strftime('%Y-%m-%d')
                 cursor.execute('''
                     INSERT OR REPLACE INTO ticker_data 
                     (ticker, date, open, high, low, close, volume, vwap)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     ticker,
-                    date,
+                    date_str,
                     result.get('o'),
                     result.get('h'),
                     result.get('l'),
@@ -72,14 +73,17 @@ class TickerModel:
                     result.get('vw')
                 ))
             
-            # Actualizar o insertar el rango de fechas
+            # Actualizar o insertar el rango de fechas usando timestamps en milisegundos
+            start_timestamp = data['results'][0]['t']  # Ya está en milisegundos
+            end_timestamp = data['results'][-1]['t']   # Ya está en milisegundos
+            
             cursor.execute('''
                 INSERT OR REPLACE INTO ticker_ranges (ticker, start_date, end_date)
                 VALUES (?, ?, ?)
             ''', (
                 ticker,
-                data['results'][0]['t'],
-                data['results'][-1]['t']
+                start_timestamp,
+                end_timestamp
             ))
             
             conn.commit()
@@ -100,14 +104,27 @@ class TickerModel:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             
+            # Asegurar que las fechas sean datetime y no date
+            if not isinstance(start_date, datetime):
+                start_date = datetime.combine(start_date, datetime.min.time())
+            if not isinstance(end_date, datetime):
+                end_date = datetime.combine(end_date, datetime.max.time())
+            
+            # Convertir las fechas a timestamps en milisegundos para la consulta
+            start_ts = int(start_date.timestamp() * 1000)
+            end_ts = int(end_date.timestamp() * 1000)
+            
             cursor.execute('''
-                SELECT * FROM ticker_data
-                WHERE ticker = ? AND date BETWEEN ? AND ?
-                ORDER BY date ASC
+                SELECT td.* FROM ticker_data td
+                JOIN ticker_ranges tr ON td.ticker = tr.ticker
+                WHERE td.ticker = ? 
+                AND tr.start_date >= ? 
+                AND tr.end_date <= ?
+                ORDER BY td.date ASC
             ''', (
                 ticker,
-                start_date.strftime('%Y-%m-%d'),
-                end_date.strftime('%Y-%m-%d')
+                start_ts,
+                end_ts
             ))
             
             rows = cursor.fetchall()

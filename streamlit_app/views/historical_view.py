@@ -34,9 +34,9 @@ def show():
     if selected_tickers:
         df = df[df['ticker'].isin(selected_tickers)]
     
-    # Formatear las fechas al estilo argentino
-    df['start_date'] = pd.to_datetime(df['start_date'], unit='ms').dt.strftime('%d/%m/%Y')
-    df['end_date'] = pd.to_datetime(df['end_date'], unit='ms').dt.strftime('%d/%m/%Y')
+    # Convertir timestamps (milisegundos) a fechas formateadas
+    df['start_date'] = pd.to_datetime(df['start_date'].astype(float), unit='ms').dt.strftime('%d/%m/%Y')
+    df['end_date'] = pd.to_datetime(df['end_date'].astype(float), unit='ms').dt.strftime('%d/%m/%Y')
     
     # Mostrar datos en una tabla interactiva
     st.dataframe(
@@ -81,10 +81,14 @@ def show():
         if selected_ticker:
             try:
                 # Obtener los datos más recientes para este ticker
+                # Convertir las fechas de string a datetime y asegurar que sean datetime, no date
+                start_date = pd.to_datetime(df[df['ticker'] == selected_ticker]['start_date'].iloc[0], format='%d/%m/%Y').to_pydatetime()
+                end_date = pd.to_datetime(df[df['ticker'] == selected_ticker]['end_date'].iloc[0], format='%d/%m/%Y').to_pydatetime()
+                
                 latest_data = service.get_ticker_data(
                     ticker=selected_ticker,
-                    start_date=df[df['ticker'] == selected_ticker]['start_date'].iloc[0],
-                    end_date=df[df['ticker'] == selected_ticker]['end_date'].iloc[0]
+                    start_date=start_date,
+                    end_date=end_date
                 )
                 
                 if latest_data is not None:
