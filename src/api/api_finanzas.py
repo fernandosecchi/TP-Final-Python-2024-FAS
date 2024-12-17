@@ -3,6 +3,8 @@ from datetime import datetime
 from typing import Optional, Dict, Any
 import os
 
+
+
 class FinanceAPI:
     """
     Cliente para la API de Polygon.io
@@ -10,6 +12,7 @@ class FinanceAPI:
     def __init__(self):
         self.base_url = "https://api.polygon.io/v2"
         # La API key debería venir de variables de entorno
+        
         self.api_key = os.getenv("POLYGON_API_KEY")
         if not self.api_key:
             raise ValueError("POLYGON_API_KEY no está configurada en las variables de entorno")

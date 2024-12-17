@@ -46,30 +46,43 @@ pip install -r requirements.txt
 
 ## Uso
 
-1. Iniciar la aplicación:
+Para iniciar la aplicación, simplemente ejecuta:
 
 ```bash
-streamlit run streamlit-app/app.py
+python main.py
 ```
 
-2. En el navegador:
-   - Ingresar el símbolo del ticker (ej: AAPL, GOOGL)
-   - Seleccionar el rango de fechas
-   - Hacer clic en "Analizar"
+Esto iniciará la aplicación Streamlit y abrirá automáticamente tu navegador predeterminado. Si no se abre automáticamente, puedes acceder a la aplicación en:
+
+- URL Local: http://localhost:8501
+
+En la interfaz web:
+
+1. Ingresa el símbolo del ticker (ej: AAPL, GOOGL)
+2. Selecciona el rango de fechas
+3. Haz clic en "Analizar"
 
 ## Estructura del Proyecto
 
 ```
 TP-Final-Python-2024-FAS/
 ├── src/
-│   ├── api_finanzas.py      # Cliente de la API de Polygon.io
-│   ├── models/              # Modelos de datos
-│   ├── services/            # Servicios de negocio
+│   ├── api/
+│   │   └── api_finanzas.py    # Cliente de la API de Polygon.io
+│   ├── models/                # Modelos de datos
+│   │   └── ticker_model.py
+│   ├── services/             # Servicios de negocio
+│   │   └── ticker_service.py
 │   └── utils/               # Utilidades y validadores
-├── streamlit-app/
-│   ├── app.py              # Punto de entrada de la aplicación
+│       └── validators.py
+├── streamlit_app/
+│   ├── app.py              # Aplicación Streamlit
 │   ├── components/         # Componentes reutilizables
+│   │   ├── date_selector.py
+│   │   └── ticker_input.py
 │   └── pages/             # Páginas de la aplicación
+│       └── home.py
+├── main.py                # Punto de entrada principal
 ├── .env                   # Configuración de variables de entorno
 └── requirements.txt       # Dependencias del proyecto
 ```
@@ -87,24 +100,22 @@ TP-Final-Python-2024-FAS/
 - Visualización avanzada con gráficos de velas
 - Almacenamiento local para consultas rápidas
 - Resumen estadístico de datos
-- Manejo de errores de red
+- Manejo de errores de red y validaciones
+- Punto de entrada unificado (main.py) con manejo de errores
+- Estructura modular y organizada del proyecto
 
-## Instalación de las dependencias
+## Desarrollo
 
-```
+El proyecto está estructurado de manera modular, siguiendo las mejores prácticas de Python:
 
-pip install -r requirements.txt
+- `main.py`: Punto de entrada principal que configura el entorno y lanza la aplicación
+- `src/`: Contiene la lógica de negocio y acceso a datos
+- `streamlit_app/`: Contiene la interfaz de usuario y componentes visuales
 
-```
+Para contribuir al desarrollo:
 
-## Cómo correr la aplicación
-
-```
-
-python ./src/app.py
-
-```
-
-### App terminal
-
-### App Web
+1. Crear un fork del repositorio
+2. Crear una rama para tu feature (`git checkout -b feature/AmazingFeature`)
+3. Commit de tus cambios (`git commit -m 'Add some AmazingFeature'`)
+4. Push a la rama (`git push origin feature/AmazingFeature`)
+5. Abrir un Pull Request

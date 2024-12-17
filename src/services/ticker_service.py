@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Optional, List, Dict, Any
 import pandas as pd
 
-from src.api_finanzas import FinanceAPI
+from src.api.api_finanzas import FinanceAPI
 from src.models.ticker_model import TickerModel
 
 class TickerService:
@@ -31,7 +31,8 @@ class TickerService:
     def get_ticker_data(self, 
                        ticker: str, 
                        start_date: datetime, 
-                       end_date: datetime) -> Optional[pd.DataFrame]:
+                       end_date: datetime,
+                       status_callback=None) -> Optional[tuple]:
         """
         Obtiene los datos del ticker para el período especificado.
         Primero busca en la base de datos local, si no encuentra datos
@@ -54,34 +55,38 @@ class TickerService:
         try:
             # Primero intentar obtener de la base de datos
             data = self.model.get_ticker_data(ticker, start_date, end_date)
+            source = "db"
             
             if not data:
                 # Si no hay datos en DB, obtener de la API
+                if status_callback:
+                    status_callback(f"Obteniendo datos de {ticker} desde la API de Polygon.io...")
                 api_data = self.api.get_stock_data(ticker, start_date, end_date)
                 if api_data:
                     # Guardar en la base de datos
                     self.model.save_ticker_data(ticker, api_data)
                     # Volver a obtener de la base de datos para tener formato consistente
                     data = self.model.get_ticker_data(ticker, start_date, end_date)
+                    source = "api"
             
             if data:
                 # Convertir a DataFrame para facilitar visualización
                 df = pd.DataFrame(data)
                 df['date'] = pd.to_datetime(df['date'])
                 df.set_index('date', inplace=True)
-                return df
+                return df, source
                 
             return None
             
         except Exception as e:
             raise ValueError(f"Error al obtener datos del ticker: {str(e)}")
 
-    def process_ticker_data(self, df: pd.DataFrame) -> Dict[str, Any]:
+    def process_ticker_data(self, df_data: tuple) -> Dict[str, Any]:
         """
         Procesa los datos del ticker para su visualización.
         
         Args:
-            df (pd.DataFrame): DataFrame con los datos del ticker
+            df_data (tuple): Tupla con (DataFrame, source) donde source indica el origen de los datos
             
         Returns:
             Dict[str, Any]: Datos procesados para visualización
@@ -90,11 +95,13 @@ class TickerService:
             ValueError: Si hay error en el procesamiento
         """
         try:
-            if df is None or df.empty:
+            if df_data is None or df_data[0].empty:
                 return None
                 
+            df, source = df_data
             return {
                 'data': df,
+                'source': source,
                 'summary': {
                     'start_date': df.index.min(),
                     'end_date': df.index.max(),

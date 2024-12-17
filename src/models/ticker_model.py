@@ -7,7 +7,7 @@ class TickerModel:
     """
     Modelo para manejar las operaciones de base de datos relacionadas con los tickers
     """
-    def __init__(self, db_path: str = "tickers.db"):
+    def __init__(self, db_path: str = "data/tickers.db"):
         self.db_path = db_path
         self._init_db()
 

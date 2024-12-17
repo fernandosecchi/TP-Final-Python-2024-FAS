@@ -1,8 +1,8 @@
 import streamlit as st
 import plotly.graph_objects as go
 from datetime import datetime
-from components.ticker_input import render_ticker_input
-from components.date_selector import render_date_selector
+from streamlit_app.components.ticker_input import render_ticker_input
+from streamlit_app.components.date_selector import render_date_selector
 from src.services.ticker_service import TickerService
 
 def plot_stock_data(data):
@@ -73,34 +73,42 @@ def show():
             elif not fecha_inicio or not fecha_fin:
                 st.warning("⚠️ Por favor, seleccione fechas válidas.")
             else:
-                with st.spinner(f"Obteniendo datos para {ticker}..."):
-                    try:
-                        # Obtener los datos usando el servicio
+                # Crear un contenedor para el mensaje de estado
+                status_container = st.empty()
+                
+                def update_status(message):
+                    status_container.info(message)
+                
+                try:
+                    # Obtener los datos usando el servicio
+                    with st.spinner(f"Buscando datos de {ticker} en la base de datos local..."):
                         data = service.get_ticker_data(
                             ticker=ticker,
                             start_date=fecha_inicio,
-                            end_date=fecha_fin
+                            end_date=fecha_fin,
+                            status_callback=update_status
+                        )
+                    
+                    if data is not None:
+                        # Procesar y mostrar los datos
+                        processed_data = service.process_ticker_data(data)
+                        
+                        # Mostrar mensaje de éxito con la fuente de los datos
+                        source_text = "la base de datos local" if processed_data['source'] == "db" else "la API de Polygon.io"
+                        st.success(f"✅ Datos obtenidos exitosamente para {ticker} desde {source_text}")
+                        
+                        # Mostrar el gráfico
+                        st.plotly_chart(
+                            plot_stock_data(processed_data['data']),
+                            use_container_width=True
                         )
                         
-                        if data is not None:
-                            # Procesar y mostrar los datos
-                            processed_data = service.process_ticker_data(data)
-                            st.success(f"✅ Datos obtenidos exitosamente para {ticker}")
-                            
-                            # Mostrar el gráfico
-                            st.plotly_chart(
-                                plot_stock_data(processed_data['data']),
-                                use_container_width=True
-                            )
-                            
-                            # Mostrar el resumen
-                            show_summary(processed_data['summary'])
-                            
-                        else:
-                            st.warning("No se encontraron datos para el período seleccionado.")
-                            
-                    except Exception as e:
-                        st.error(f"❌ Error al obtener los datos: {str(e)}")
+                        # Mostrar el resumen
+                        show_summary(processed_data['summary'])
+                    else:
+                        st.warning("No se encontraron datos para el período seleccionado.")
+                except Exception as e:
+                    st.error(f"❌ Error al obtener los datos: {str(e)}")
 
     # Agregar información adicional
     with st.expander("ℹ️ Información"):

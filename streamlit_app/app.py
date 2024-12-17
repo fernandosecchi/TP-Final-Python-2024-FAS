@@ -1,4 +1,12 @@
+import sys, os
 import streamlit as st
+
+# Add both parent directory and current directory to Python path
+current_dir = os.path.dirname(__file__)
+parent_dir = os.path.join(current_dir, '..')
+sys.path.extend([parent_dir, current_dir])
+
+# Import after path modification
 from pages import home
 
 # Configuración de la página
@@ -33,6 +41,9 @@ def main():
         
         ### Desarrollado por
         Fernando Secchi
+        
+        ### Trabajo Práctico
+        Trabájo Práctico Final ITBA
         """)
     
     # Renderizar la página seleccionada
