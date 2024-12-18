@@ -13,9 +13,23 @@ Esta aplicación permite analizar datos históricos de acciones utilizando la AP
 - Almacenamiento local de datos para consultas futuras
 - Resumen estadístico de los datos (precios promedio, máximos, mínimos, volumen)
 
-## Requisitos
+## Requisitos del Sistema
 
-- Python 3.8 o superior
+### Python
+
+- Versión: Python 3.10.13
+- Se recomienda usar esta versión específica para evitar problemas de compatibilidad
+
+### Dependencias Principales
+
+- pandas==2.2.3: Para el manejo y análisis de datos
+- plotly==5.20.0: Para la visualización de gráficos interactivos
+- python-dotenv==1.0.1: Para la gestión de variables de entorno
+- requests==2.31.0: Para realizar llamadas a la API
+- streamlit==1.40.2: Para la interfaz web
+
+### API Key
+
 - Una API key de Polygon.io (puedes obtenerla en https://polygon.io/)
 
 ## Instalación
@@ -30,8 +44,14 @@ cd TP-Final-Python-2024-FAS
 2. Crear y activar un entorno virtual:
 
 ```bash
-conda create -n tp-final-2024-FAS python=3.8
+# Usando conda
+conda create -n tp-final-2024-FAS python=3.10.13
 conda activate tp-final-2024-FAS
+
+# O usando venv (alternativa)
+python -m venv venv
+source venv/bin/activate  # En Linux/Mac
+.\venv\Scripts\activate   # En Windows
 ```
 
 3. Instalar las dependencias:
