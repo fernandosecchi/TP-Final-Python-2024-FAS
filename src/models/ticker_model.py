@@ -54,40 +54,67 @@ class TickerModel:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             
-            # Guardar cada punto de datos
+            # Preparar los datos para inserción masiva
+            data_to_insert = []
             for result in data['results']:
                 timestamp = result['t']  # Ya está en milisegundos
                 date_str = datetime.fromtimestamp(timestamp/1000).strftime('%Y-%m-%d')
+                
+                # Verificar si ya existe un registro para esta fecha
                 cursor.execute('''
-                    INSERT OR REPLACE INTO ticker_data 
+                    SELECT id FROM ticker_data 
+                    WHERE ticker = ? AND date = ?
+                ''', (ticker, date_str))
+                
+                if not cursor.fetchone():
+                    # Solo agregar si no existe
+                    data_to_insert.append((
+                        ticker,
+                        date_str,
+                        result.get('o'),
+                        result.get('h'),
+                        result.get('l'),
+                        result.get('c'),
+                        result.get('v'),
+                        result.get('vw')
+                    ))
+            
+            # Insertar todos los nuevos datos de una vez
+            if data_to_insert:
+                cursor.executemany('''
+                    INSERT INTO ticker_data 
                     (ticker, date, open, high, low, close, volume, vwap)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (
-                    ticker,
-                    date_str,
-                    result.get('o'),
-                    result.get('h'),
-                    result.get('l'),
-                    result.get('c'),
-                    result.get('v'),
-                    result.get('vw')
-                ))
+                ''', data_to_insert)
             
-            # Actualizar o insertar el rango de fechas usando timestamps en milisegundos
-            timestamp1 = data['results'][0]['t']  # Ya está en milisegundos
-            timestamp2 = data['results'][-1]['t']  # Ya está en milisegundos
+            # Obtener el rango actual de fechas si existe
+            cursor.execute('SELECT start_date, end_date FROM ticker_ranges WHERE ticker = ?', (ticker,))
+            existing_range = cursor.fetchone()
             
-            # Asegurar que start_date sea el timestamp menor
-            start_timestamp = min(timestamp1, timestamp2)
-            end_timestamp = max(timestamp1, timestamp2)
+            # Obtener los nuevos timestamps y asegurar que sean enteros
+            timestamp1 = int(data['results'][0]['t'])  # Ya está en milisegundos
+            timestamp2 = int(data['results'][-1]['t'])  # Ya está en milisegundos
+            new_start = min(timestamp1, timestamp2)
+            new_end = max(timestamp1, timestamp2)
             
+            if existing_range:
+                # Si ya existe un rango, expandirlo si es necesario
+                current_start, current_end = map(int, existing_range)  # Convertir a int
+                final_start = min(int(current_start), int(new_start))
+                final_end = max(int(current_end), int(new_end))
+            else:
+                # Si no existe, usar los nuevos timestamps
+                final_start = int(new_start)
+                final_end = int(new_end)
+            
+            # Actualizar o insertar el rango de fechas
             cursor.execute('''
                 INSERT OR REPLACE INTO ticker_ranges (ticker, start_date, end_date)
                 VALUES (?, ?, ?)
             ''', (
                 ticker,
-                start_timestamp,
-                end_timestamp
+                final_start,
+                final_end
             ))
             
             conn.commit()
