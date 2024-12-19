@@ -80,13 +80,13 @@ Esto iniciará la aplicación Streamlit y abrirá automáticamente tu navegador 
 
 ## Video Demo: https://youtu.be/TyaRkDqN86Y
 
-### Página Principal (Nueva Consulta)
+## Página Principal (Nueva Consulta)
 En esta vista, los usuarios pueden ingresar un símbolo de ticker (por ejemplo, AAPL) y seleccionar un rango de fechas para analizar los datos históricos de la acción.
 
-### Historial de Consultas
+## Historial de Consultas
 La vista de historial muestra todas las consultas realizadas, permitiendo filtrar por ticker y ver estadísticas globales de las consultas realizadas.
 
-### Mantenimiento de Base de Datos
+## Mantenimiento de Base de Datos
 En la sección de mantenimiento, se puede ver un resumen de los datos almacenados, incluyendo el total de tickers, rangos y datos en la base de datos local.
 
 
