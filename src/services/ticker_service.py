@@ -1,11 +1,15 @@
 import re
 from datetime import datetime
-from typing import Optional, List, Dict, Any, Union
+from typing import Optional, List, Dict, Any, Union, Tuple
 import pandas as pd
 
 from src.api.api_finanzas import FinanceAPI
 from src.models.ticker_model import TickerModel
 from src.utils.validators import validate_dates
+from src.utils.exceptions import (
+    DatabaseError, APIError, APIRateLimitError, APIConnectionError,
+    InvalidDataError, DataValidationError
+)
 
 class TickerService:
     """
@@ -82,7 +86,7 @@ class TickerService:
     def get_historical_data(self,
                           ticker: str,
                           start_date: str,
-                          end_date: str) -> Optional[tuple]:
+                          end_date: str) -> Optional[Dict[str, Any]]:
         """
         Obtiene los datos históricos del ticker SOLO de la base de datos local.
         No intenta obtener nuevos datos de la API.
@@ -93,10 +97,16 @@ class TickerService:
             end_date (str): Fecha fin en formato YYYY-MM-DD
             
         Returns:
-            Optional[tuple]: (DataFrame, source) con los datos o None si no hay datos
+            Optional[Dict[str, Any]]: Diccionario con:
+                - data: DataFrame con los datos históricos
+                - source: Origen de los datos ("db")
+                - missing_dates: Lista de fechas sin datos disponibles
+                O None si no hay datos
             
         Raises:
             ValueError: Si los parámetros son inválidos
+            DatabaseError: Si hay error al acceder a la base de datos
+            InvalidDataError: Si los datos no tienen el formato esperado
         """
         is_valid, error_msg = self.validate_ticker(ticker)
         if not is_valid:
@@ -112,25 +122,36 @@ class TickerService:
             data = self.model.get_ticker_data(ticker, start_date, end_date)
             
             if data:
-                # Convertir a DataFrame para facilitar visualización
+                # Convertir a DataFrame
                 df = pd.DataFrame(data)
-                # Convertir la columna date a datetime usando el formato correcto
                 df['date'] = pd.to_datetime(df['date'], format='%Y-%m-%d')
                 df.set_index('date', inplace=True)
-                # Asignar el ticker como nombre del DataFrame
                 df.name = ticker
-                return df, "db"
+                
+                # Verificar cobertura de datos
+                start_dt = pd.to_datetime(start_date)
+                end_dt = pd.to_datetime(end_date)
+                date_range = pd.date_range(start=start_dt, end=end_dt, freq='B')
+                missing_dates = date_range.difference(df.index)
+                
+                return {
+                    'data': df,
+                    'source': 'db',
+                    'missing_dates': [d.strftime('%d/%m/%Y') for d in missing_dates] if len(missing_dates) > 0 else []
+                }
             
             return None
             
+        except DatabaseError as e:
+            raise
         except Exception as e:
-            raise ValueError(f"Error al obtener datos históricos del ticker: {str(e)}")
+            raise InvalidDataError(f"Error al obtener datos históricos del ticker: {str(e)}")
             
     def get_ticker_data(self, 
                        ticker: str, 
                        start_date: str, 
                        end_date: str,
-                       status_callback=None) -> Optional[tuple]:
+                       status_callback=None) -> Optional[Dict[str, Any]]:
         """
         Obtiene los datos del ticker para el período especificado.
         Primero busca en la base de datos local, si no encuentra datos
@@ -138,14 +159,22 @@ class TickerService:
         
         Args:
             ticker (str): El ticker a consultar
-            start_date (datetime): Fecha de inicio
-            end_date (datetime): Fecha de fin
+            start_date (str): Fecha de inicio en formato YYYY-MM-DD
+            end_date (str): Fecha de fin en formato YYYY-MM-DD
+            status_callback (Callable[[str], None], optional): Función para reportar el estado del proceso
             
         Returns:
-            Optional[pd.DataFrame]: DataFrame con los datos o None si hay error
+            Optional[Dict[str, Any]]: Diccionario con:
+                - data: DataFrame con los datos históricos
+                - source: Origen de los datos ("db", "api", o "mixed")
+                - missing_dates: Lista de fechas sin datos disponibles
+                O None si no hay datos
             
         Raises:
             ValueError: Si los parámetros son inválidos
+            DatabaseError: Si hay error al acceder a la base de datos
+            APIError: Si hay error al obtener datos de la API
+            InvalidDataError: Si los datos no tienen el formato esperado
         """
         is_valid, error_msg = self.validate_ticker(ticker)
         if not is_valid:
@@ -158,42 +187,91 @@ class TickerService:
             
         try:
             # Primero intentar obtener de la base de datos local
-            data = self.model.get_ticker_data(ticker, start_date, end_date)
+            try:
+                data = self.model.get_ticker_data(ticker, start_date, end_date)
+                source = "db"
+            except DatabaseError:
+                data = None
+            
+            # Verificar cobertura de datos
+            start_dt = pd.to_datetime(start_date)
+            end_dt = pd.to_datetime(end_date)
+            date_range = pd.date_range(start=start_dt, end=end_dt, freq='B')  # B for business days
+            
+            db_data = None
+            api_data = None
             source = "db"
             
-            if not data:
-                # Si no hay datos en DB, obtener de la API
-                if status_callback:
-                    status_callback(f"Obteniendo datos de {ticker} desde la API de Polygon.io...")
-                api_data = self.api.get_stock_data(ticker, start_date, end_date)
-                if api_data and api_data.get('results'):
-                    # Intentar guardar en la base de datos
-                    if self.model.save_ticker_data(ticker, api_data):
-                        # Si se guardó correctamente, obtener de la base de datos para formato consistente
-                        data = self.model.get_ticker_data(ticker, start_date, end_date)
-                        source = "api"
-                    else:
-                        return None, f"Error al guardar los datos del ticker '{ticker}' en la base de datos."
-                else:
-                    # Verificar si el ticker es válido
-                    if api_data and api_data.get('status') == 'ERROR':
-                        return None, f"El ticker '{ticker}' no es válido según la API."
-                    return None, f"No se encontraron datos para el ticker '{ticker}' en la API."
-            
+            # Intentar obtener datos de la base de datos
             if data:
-                # Convertir a DataFrame para facilitar visualización
-                df = pd.DataFrame(data)
-                # Convertir la columna date a datetime usando el formato correcto
-                df['date'] = pd.to_datetime(df['date'], format='%Y-%m-%d')
-                df.set_index('date', inplace=True)
-                # Asignar el ticker como nombre del DataFrame
-                df.name = ticker
-                return df, source
+                db_data = pd.DataFrame(data)
+                db_data['date'] = pd.to_datetime(db_data['date'])
+                db_data.set_index('date', inplace=True)
             
-            return None
+            # Verificar si necesitamos datos de la API
+            missing_dates = []
+            if db_data is not None:
+                missing_dates = date_range.difference(db_data.index)
+            else:
+                missing_dates = date_range
             
+            # Si faltan fechas, intentar obtener de la API
+            if len(missing_dates) > 0:
+                if status_callback:
+                    status_callback(f"Obteniendo datos faltantes de {ticker} desde la API de Polygon.io...")
+                
+                try:
+                    # Convertir las fechas al formato requerido por la API
+                    api_start = missing_dates.min().strftime('%Y-%m-%d')
+                    api_end = missing_dates.max().strftime('%Y-%m-%d')
+                    
+                    api_response = self.api.get_stock_data(ticker, api_start, api_end)
+                    if api_response and api_response.get('results'):
+                        # Guardar nuevos datos
+                        self.model.save_ticker_data(ticker, api_response)
+                        
+                        # Convertir datos de la API a DataFrame
+                        new_data = self.model.get_ticker_data(ticker, api_start, api_end)
+                        if new_data:
+                            api_data = pd.DataFrame(new_data)
+                            api_data['date'] = pd.to_datetime(api_data['date'])
+                            api_data.set_index('date', inplace=True)
+                            source = "api"
+                except (APIError, APIRateLimitError, APIConnectionError) as e:
+                    # Si hay error con la API pero tenemos algunos datos, continuamos con advertencia
+                    if db_data is not None:
+                        raise InvalidDataError(f"No se pudieron obtener todos los datos: {str(e)}")
+                    else:
+                        raise APIError(f"Error al obtener datos de la API: {str(e)}")
+            
+            # Combinar datos de ambas fuentes si es necesario
+            if db_data is not None and api_data is not None:
+                df = pd.concat([db_data, api_data]).sort_index()
+                df = df[~df.index.duplicated(keep='last')]  # Eliminar duplicados
+                source = "mixed"
+            elif db_data is not None:
+                df = db_data
+            elif api_data is not None:
+                df = api_data
+            else:
+                return None
+            
+            # Verificar cobertura final y preparar resultado
+            df.name = ticker
+            missing_dates = date_range.difference(df.index)
+            
+            result = {
+                'data': df,
+                'source': source,
+                'missing_dates': [d.strftime('%d/%m/%Y') for d in missing_dates] if len(missing_dates) > 0 else []
+            }
+            
+            return result
+            
+        except (DatabaseError, APIError, InvalidDataError) as e:
+            raise
         except Exception as e:
-            raise ValueError(f"Error al obtener datos del ticker: {str(e)}")
+            raise ValueError(f"Error inesperado al obtener datos del ticker: {str(e)}")
 
     def get_company_name(self, ticker: str) -> Optional[str]:
         """
@@ -204,46 +282,73 @@ class TickerService:
             
         Returns:
             Optional[str]: Nombre de la compañía o None si no se encuentra
+            
+        Raises:
+            APIError: Si hay un error al obtener los datos de la API
+            InvalidDataError: Si los datos recibidos no tienen el formato esperado
         """
         try:
-            print(f"Obteniendo nombre de compañía para ticker: {ticker}")
             details = self.api.get_ticker_details(ticker)
-            print(f"Detalles obtenidos: {details}")
-            if details and 'results' in details:
-                name = details['results'].get('name')
-                print(f"Nombre de compañía encontrado: {name}")
-                return name
-            print("No se encontraron resultados en los detalles")
-            return None
+            if not details or 'results' not in details:
+                raise InvalidDataError(f"Datos inválidos recibidos para el ticker {ticker}")
+                
+            name = details['results'].get('name')
+            if not name:
+                return None
+                
+            return name
+        except (APIError, InvalidDataError) as e:
+            raise
         except Exception as e:
-            print(f"Error al obtener nombre de compañía: {str(e)}")
-            return None
+            raise APIError(f"Error inesperado al obtener nombre de compañía: {str(e)}")
 
-    def process_ticker_data(self, df_data: tuple) -> Dict[str, Any]:
+    def process_ticker_data(self, df_data: Tuple[pd.DataFrame, str]) -> Dict[str, Any]:
         """
         Procesa los datos del ticker para su visualización.
         
         Args:
-            df_data (tuple): Tupla con (DataFrame, source) donde source indica el origen de los datos
+            df_data (Tuple[pd.DataFrame, str]): Tupla con (DataFrame, source) donde source indica el origen de los datos
             
         Returns:
             Dict[str, Any]: Datos procesados para visualización
             
         Raises:
-            ValueError: Si hay error en el procesamiento
+            ValueError: Si los datos de entrada son inválidos
+            InvalidDataError: Si los datos no tienen el formato esperado
+            APIError: Si hay error al obtener el nombre de la compañía
         """
+        if df_data is None:
+            raise ValueError("No se proporcionaron datos para procesar")
+            
+        if not isinstance(df_data, tuple) or len(df_data) != 2:
+            raise ValueError("Formato de datos inválido")
+            
+        df, source = df_data
+        
+        if not isinstance(df, pd.DataFrame) or df.empty:
+            raise InvalidDataError("DataFrame vacío o inválido")
+            
         try:
-            if df_data is None or df_data[0].empty:
-                return None
-                
-            df, source = df_data
-            # El ticker viene como primer elemento del tuple df_data
+            # Validar que el DataFrame tenga las columnas necesarias
+            required_columns = ['close', 'low', 'high', 'volume']
+            missing_columns = [col for col in required_columns if col not in df.columns]
+            if missing_columns:
+                raise InvalidDataError(f"Faltan columnas requeridas en el DataFrame: {', '.join(missing_columns)}")
+            
+            # Obtener el ticker y nombre de la compañía
             ticker = df.name if hasattr(df, 'name') else None
-            # Si no tiene name, intentamos obtenerlo del DataFrame
             if not ticker and isinstance(df, pd.DataFrame):
                 df.name = df.index.name
                 ticker = df.index.name
-            company_name = self.get_company_name(ticker) if ticker else None
+                
+            if not ticker:
+                raise InvalidDataError("No se pudo determinar el ticker de los datos")
+                
+            try:
+                company_name = self.get_company_name(ticker) if ticker else None
+            except (APIError, InvalidDataError) as e:
+                # Si hay error al obtener el nombre de la compañía, continuamos sin él
+                company_name = None
             
             return {
                 'data': df,
@@ -259,8 +364,10 @@ class TickerService:
                 }
             }
             
+        except (ValueError, InvalidDataError, APIError) as e:
+            raise
         except Exception as e:
-            raise ValueError(f"Error al procesar datos del ticker: {str(e)}")
+            raise InvalidDataError(f"Error al procesar datos del ticker: {str(e)}")
 
     def get_stored_tickers_summary(self) -> List[Dict[str, str]]:
         """
@@ -268,8 +375,14 @@ class TickerService:
         
         Returns:
             List[Dict[str, str]]: Lista de tickers y sus rangos de fechas
+            
+        Raises:
+            DatabaseError: Si hay un error al acceder a la base de datos
         """
-        return self.model.get_stored_tickers()
+        try:
+            return self.model.get_stored_tickers()
+        except Exception as e:
+            raise DatabaseError(f"Error al obtener el resumen de tickers: {str(e)}")
         
     def delete_ticker_data(self, ticker: str) -> None:
         """
@@ -279,10 +392,14 @@ class TickerService:
             ticker (str): El ticker cuyos datos se eliminarán
             
         Raises:
-            ValueError: Si el ticker es inválido o hay un error al eliminar
+            ValueError: Si el ticker es inválido
+            DatabaseError: Si hay un error al eliminar los datos
         """
         is_valid, error_msg = self.validate_ticker(ticker)
         if not is_valid:
             raise ValueError(error_msg)
             
-        self.model.delete_ticker_data(ticker)
+        try:
+            self.model.delete_ticker_data(ticker)
+        except Exception as e:
+            raise DatabaseError(f"Error al eliminar los datos del ticker {ticker}: {str(e)}")

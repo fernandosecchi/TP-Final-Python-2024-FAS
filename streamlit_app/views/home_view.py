@@ -4,6 +4,10 @@ from datetime import datetime
 from streamlit_app.components.ticker_input import render_ticker_input
 from streamlit_app.components.date_selector import render_date_selector
 from src.services.ticker_service import TickerService
+from src.utils.exceptions import (
+    DatabaseError, APIError, InvalidDataError,
+    DataValidationError
+)
 
 def plot_stock_data(data):
     """
@@ -45,9 +49,6 @@ def show_summary(summary, company_name=None):
         st.metric("Volumen Total", f"{summary['total_volume']:,.0f}")
 
 def show():
-    # Inicializar la clave "clientes" en el estado de la sesión si no existe
-    if "clientes" not in st.session_state:
-        st.session_state.clientes = []
     """
     Renderiza la página principal de la aplicación.
     """
@@ -83,7 +84,7 @@ def show():
                 
                 try:
                     # Obtener los datos usando el servicio
-                    with st.spinner(f"Buscando datos de {ticker} en la base de datos local..."):
+                    with st.spinner(f"Buscando datos de {ticker}..."):
                         data = service.get_ticker_data(
                             ticker=ticker,
                             start_date=fecha_inicio,
@@ -92,25 +93,49 @@ def show():
                         )
                     
                     if data is not None:
-                        # Procesar y mostrar los datos
-                        processed_data = service.process_ticker_data(data)
-                        
-                        # Mostrar mensaje de éxito con la fuente de los datos
-                        source_text = "la base de datos local" if processed_data['source'] == "db" else "la API de Polygon.io"
-                        st.success(f"✅ Datos obtenidos exitosamente para {ticker} desde {source_text}")
-                        
-                        # Mostrar el gráfico
-                        st.plotly_chart(
-                            plot_stock_data(processed_data['data']),
-                            use_container_width=True
-                        )
-                        
-                        # Mostrar el resumen con el nombre de la compañía
-                        show_summary(processed_data['summary'], processed_data.get('company_name'))
+                        try:
+                            # Procesar y mostrar los datos
+                            df_data = (data['data'], data['source'])
+                            processed_data = service.process_ticker_data(df_data)
+                            
+                            # Mostrar mensaje sobre la fuente de los datos
+                            source_text = {
+                                "db": "la base de datos local",
+                                "api": "la API de Polygon.io",
+                                "mixed": "múltiples fuentes"
+                            }.get(data['source'], "fuente desconocida")
+                            
+                            st.success(f"✅ Datos obtenidos para {ticker} desde {source_text}")
+                            
+                            # Mostrar advertencia si hay fechas faltantes
+                            if data['missing_dates']:
+                                st.warning(
+                                    "⚠️ Algunos datos no están disponibles para las siguientes fechas:\n" +
+                                    ", ".join(data['missing_dates'])
+                                )
+                            
+                            # Mostrar el gráfico
+                            st.plotly_chart(
+                                plot_stock_data(processed_data['data']),
+                                use_container_width=True
+                            )
+                            
+                            # Mostrar el resumen con el nombre de la compañía
+                            show_summary(processed_data['summary'], processed_data.get('company_name'))
+                        except (KeyError, TypeError) as e:
+                            st.error(f"❌ Error al procesar los datos: {str(e)}")
+                        except Exception as e:
+                            st.error(f"❌ Error inesperado al procesar los datos: {str(e)}")
                     else:
                         st.warning("No se encontraron datos para el período seleccionado.")
-                except Exception as e:
+                except (DatabaseError, APIError) as e:
                     st.error(f"❌ Error al obtener los datos: {str(e)}")
+                except InvalidDataError as e:
+                    st.warning(f"⚠️ {str(e)}")
+                except DataValidationError as e:
+                    st.error(f"❌ Error de validación: {str(e)}")
+                except Exception as e:
+                    st.error(f"❌ Error inesperado: {str(e)}")
 
     # Agregar información adicional
     with st.expander("ℹ️ Información"):

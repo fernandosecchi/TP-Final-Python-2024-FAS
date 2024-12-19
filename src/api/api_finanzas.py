@@ -1,9 +1,11 @@
 import requests
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Dict, Any
 import os
-
-
+from src.utils.exceptions import (
+    APIError, APIRateLimitError, APIConnectionError,
+    InvalidDataError
+)
 
 class FinanceAPI:
     """
@@ -15,9 +17,9 @@ class FinanceAPI:
         
         self.api_key = os.getenv("POLYGON_API_KEY")
         if not self.api_key:
-            raise ValueError("POLYGON_API_KEY no está configurada en las variables de entorno")
+            raise APIError("POLYGON_API_KEY no está configurada en las variables de entorno")
 
-    def get_ticker_details(self, ticker: str) -> Optional[Dict[str, Any]]:
+    def get_ticker_details(self, ticker: str) -> Dict[str, Any]:
         """
         Obtiene los detalles de un ticker desde Polygon.io
         
@@ -25,7 +27,13 @@ class FinanceAPI:
             ticker (str): Símbolo del ticker (ej: AAPL)
             
         Returns:
-            Optional[Dict[str, Any]]: Detalles del ticker o None si hay error
+            Dict[str, Any]: Detalles del ticker
+            
+        Raises:
+            APIRateLimitError: Si se excede el límite de la API
+            APIConnectionError: Si hay problemas de conexión
+            APIError: Si hay otros errores de la API
+            InvalidDataError: Si la respuesta no tiene el formato esperado
         """
         try:
             url = f"https://api.polygon.io/v3/reference/tickers/{ticker}?apiKey={self.api_key}"
@@ -36,44 +44,46 @@ class FinanceAPI:
             data = response.json()
             
             if response.status_code == 429:
-                print(f"Error: Límite de API excedido para {ticker}")
-                return None
+                raise APIRateLimitError(f"Límite de API excedido para {ticker}")
                 
             if data.get('status') == 'ERROR':
-                print(f"Error de API para {ticker}: {data.get('error')}")
-                return None
+                raise APIError(f"Error de API para {ticker}: {data.get('error')}")
+                
+            if not isinstance(data, dict):
+                raise InvalidDataError(f"Respuesta inválida de la API para {ticker}")
                 
             return data
                 
         except requests.exceptions.RequestException as e:
-            print(f"Error de conexión con la API: {str(e)}")
-            return None
+            raise APIConnectionError(f"Error de conexión con la API: {str(e)}")
         except ValueError as e:
-            print(f"Error al procesar la respuesta JSON: {str(e)}")
-            return None
+            raise InvalidDataError(f"Error al procesar la respuesta JSON: {str(e)}")
+        except (APIError, APIRateLimitError, APIConnectionError, InvalidDataError):
+            raise
         except Exception as e:
-            print(f"Error inesperado al obtener detalles de {ticker}: {str(e)}")
-            return None
+            raise APIError(f"Error inesperado al obtener detalles de {ticker}: {str(e)}")
 
-    def get_stock_data(self, ticker: str, start_date: str, end_date: str) -> Optional[Dict[str, Any]]:
+    def get_stock_data(self, ticker: str, start_date: str, end_date: str) -> Dict[str, Any]:
         """
         Obtiene datos históricos de acciones desde Polygon.io
         
         Args:
             ticker (str): Símbolo del ticker (ej: AAPL)
-            start_date (datetime): Fecha de inicio
-            end_date (datetime): Fecha de fin
+            start_date (str): Fecha de inicio en formato YYYY-MM-DD
+            end_date (str): Fecha de fin en formato YYYY-MM-DD
             
         Returns:
-            Optional[Dict[str, Any]]: Datos de la acción o None si hay error
+            Dict[str, Any]: Datos históricos de la acción
+            
+        Raises:
+            APIRateLimitError: Si se excede el límite de la API
+            APIConnectionError: Si hay problemas de conexión
+            APIError: Si hay otros errores de la API
+            InvalidDataError: Si la respuesta no tiene el formato esperado
         """
         try:
-            # Las fechas ya vienen en formato YYYY-MM-DD
-            start_str = start_date
-            end_str = end_date
-            
             # Construir URL
-            endpoint = f"/aggs/ticker/{ticker}/range/1/day/{start_str}/{end_str}"
+            endpoint = f"/aggs/ticker/{ticker}/range/1/day/{start_date}/{end_date}"
             url = f"{self.base_url}{endpoint}?apiKey={self.api_key}"
             
             # Realizar request
@@ -83,25 +93,24 @@ class FinanceAPI:
             data = response.json()
             
             if response.status_code == 429:
-                print(f"Error: Límite de API excedido para {ticker}")
-                return None
+                raise APIRateLimitError(f"Límite de API excedido para {ticker}")
                 
             if data.get('status') == 'ERROR':
-                print(f"Error de API para {ticker}: {data.get('error')}")
-                return None
+                raise APIError(f"Error de API para {ticker}: {data.get('error')}")
                 
             if not data.get('results'):
-                print(f"No se encontraron datos para {ticker} en el período {start_str} a {end_str}")
-                return None
+                raise InvalidDataError(f"No se encontraron datos para {ticker} en el período {start_date} a {end_date}")
+                
+            if not isinstance(data['results'], list):
+                raise InvalidDataError(f"Formato de respuesta inválido para {ticker}")
                 
             return data
                 
         except requests.exceptions.RequestException as e:
-            print(f"Error de conexión con la API: {str(e)}")
-            return None
+            raise APIConnectionError(f"Error de conexión con la API: {str(e)}")
         except ValueError as e:
-            print(f"Error al procesar la respuesta JSON: {str(e)}")
-            return None
+            raise InvalidDataError(f"Error al procesar la respuesta JSON: {str(e)}")
+        except (APIError, APIRateLimitError, APIConnectionError, InvalidDataError):
+            raise
         except Exception as e:
-            print(f"Error inesperado al obtener datos de {ticker}: {str(e)}")
-            return None
+            raise APIError(f"Error inesperado al obtener datos de {ticker}: {str(e)}")
