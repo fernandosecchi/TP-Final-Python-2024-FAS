@@ -26,10 +26,14 @@ def plot_stock_data(data):
     
     return fig
 
-def show_summary(summary):
+def show_summary(summary, company_name=None):
     """
     Muestra un resumen de los datos del ticker
     """
+    # Si tenemos el nombre de la compañía, mostrarlo como subtítulo
+    if company_name:
+        st.subheader(f"📊 {company_name}")
+    
     col1, col2 = st.columns(2)
     
     with col1:
@@ -101,8 +105,8 @@ def show():
                             use_container_width=True
                         )
                         
-                        # Mostrar el resumen
-                        show_summary(processed_data['summary'])
+                        # Mostrar el resumen con el nombre de la compañía
+                        show_summary(processed_data['summary'], processed_data.get('company_name'))
                     else:
                         st.warning("No se encontraron datos para el período seleccionado.")
                 except Exception as e:

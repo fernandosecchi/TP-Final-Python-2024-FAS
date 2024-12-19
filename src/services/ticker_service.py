@@ -89,6 +89,8 @@ class TickerService:
                 # Convertir la columna date a datetime usando el formato correcto
                 df['date'] = pd.to_datetime(df['date'], format='%Y-%m-%d')
                 df.set_index('date', inplace=True)
+                # Asignar el ticker como nombre del DataFrame
+                df.name = ticker
                 return df, "db"
             
             return None
@@ -154,12 +156,38 @@ class TickerService:
                 # Convertir la columna date a datetime usando el formato correcto
                 df['date'] = pd.to_datetime(df['date'], format='%Y-%m-%d')
                 df.set_index('date', inplace=True)
+                # Asignar el ticker como nombre del DataFrame
+                df.name = ticker
                 return df, source
             
             return None
             
         except Exception as e:
             raise ValueError(f"Error al obtener datos del ticker: {str(e)}")
+
+    def get_company_name(self, ticker: str) -> Optional[str]:
+        """
+        Obtiene el nombre de la compañía para un ticker.
+        
+        Args:
+            ticker (str): El ticker a consultar
+            
+        Returns:
+            Optional[str]: Nombre de la compañía o None si no se encuentra
+        """
+        try:
+            print(f"Obteniendo nombre de compañía para ticker: {ticker}")
+            details = self.api.get_ticker_details(ticker)
+            print(f"Detalles obtenidos: {details}")
+            if details and 'results' in details:
+                name = details['results'].get('name')
+                print(f"Nombre de compañía encontrado: {name}")
+                return name
+            print("No se encontraron resultados en los detalles")
+            return None
+        except Exception as e:
+            print(f"Error al obtener nombre de compañía: {str(e)}")
+            return None
 
     def process_ticker_data(self, df_data: tuple) -> Dict[str, Any]:
         """
@@ -179,9 +207,18 @@ class TickerService:
                 return None
                 
             df, source = df_data
+            # El ticker viene como primer elemento del tuple df_data
+            ticker = df.name if hasattr(df, 'name') else None
+            # Si no tiene name, intentamos obtenerlo del DataFrame
+            if not ticker and isinstance(df, pd.DataFrame):
+                df.name = df.index.name
+                ticker = df.index.name
+            company_name = self.get_company_name(ticker) if ticker else None
+            
             return {
                 'data': df,
                 'source': source,
+                'company_name': company_name,
                 'summary': {
                     'start_date': df.index.min(),
                     'end_date': df.index.max(),
