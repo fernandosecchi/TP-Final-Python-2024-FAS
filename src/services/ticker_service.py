@@ -42,12 +42,11 @@ class TickerService:
         # Verificar tickers comunes mal escritos
         ticker_corrections = {
             "APPL": "AAPL",
-            "GOOGL": "GOOG",
             "TSLA": "TSLA",
             "AMZN": "AMZN",
             "MSFT": "MSFT"
         }
-        if ticker in ticker_corrections and ticker != ticker_corrections[ticker]:
+        if ticker in ticker_corrections:
             return False, f"¿Quizás quisiste decir '{ticker_corrections[ticker]}'? El ticker '{ticker}' parece estar mal escrito."
             
         return True, ""
@@ -128,7 +127,7 @@ class TickerService:
             raise ValueError(error_msg)
             
         try:
-            # Primero intentar obtener de la base de datos
+            # Primero intentar obtener de la base de datos local
             data = self.model.get_ticker_data(ticker, start_date, end_date)
             source = "db"
             
@@ -144,7 +143,10 @@ class TickerService:
                     data = self.model.get_ticker_data(ticker, start_date, end_date)
                     source = "api"
                 else:
-                    return None
+                    # Verificar si el ticker es válido
+                    if api_data and api_data.get('status') == 'ERROR':
+                        return None, f"El ticker '{ticker}' no es válido según la API."
+                    return None, f"No se encontraron datos para el ticker '{ticker}' en la API."
             
             if data:
                 # Convertir a DataFrame para facilitar visualización

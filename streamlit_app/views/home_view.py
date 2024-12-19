@@ -41,6 +41,9 @@ def show_summary(summary):
         st.metric("Volumen Total", f"{summary['total_volume']:,.0f}")
 
 def show():
+    # Inicializar la clave "clientes" en el estado de la sesión si no existe
+    if "clientes" not in st.session_state:
+        st.session_state.clientes = []
     """
     Renderiza la página principal de la aplicación.
     """
