@@ -7,7 +7,7 @@ parent_dir = os.path.join(current_dir, '..')
 sys.path.extend([parent_dir, current_dir])
 
 # Import views
-from views import home_view, historical_view
+from views import home_view, historical_view, maintenance_view
 
 # Configuración de la página
 st.set_page_config(
@@ -29,7 +29,8 @@ def main():
     # Definir las páginas disponibles con sus íconos
     pages = {
         "🏠 Inicio": home_view.show,
-        "📚 Historial": historical_view.show
+        "📚 Historial": historical_view.show,
+        "🔧 Mantenimiento": maintenance_view.show
     }
     
     # Sidebar para navegación
@@ -38,7 +39,12 @@ def main():
         
         # Navegación
         st.subheader("Menú")
-        page = st.radio("", list(pages.keys()), label_visibility="collapsed")
+        page = st.radio(
+            "Seleccione una página",
+            options=list(pages.keys()),
+            label_visibility="collapsed",
+            key="navigation"
+        )
         
         st.divider()
         
