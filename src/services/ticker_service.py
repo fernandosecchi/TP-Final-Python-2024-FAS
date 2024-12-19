@@ -167,11 +167,13 @@ class TickerService:
                     status_callback(f"Obteniendo datos de {ticker} desde la API de Polygon.io...")
                 api_data = self.api.get_stock_data(ticker, start_date, end_date)
                 if api_data and api_data.get('results'):
-                    # Guardar en la base de datos
-                    self.model.save_ticker_data(ticker, api_data)
-                    # Volver a obtener de la base de datos para tener formato consistente
-                    data = self.model.get_ticker_data(ticker, start_date, end_date)
-                    source = "api"
+                    # Intentar guardar en la base de datos
+                    if self.model.save_ticker_data(ticker, api_data):
+                        # Si se guardó correctamente, obtener de la base de datos para formato consistente
+                        data = self.model.get_ticker_data(ticker, start_date, end_date)
+                        source = "api"
+                    else:
+                        return None, f"Error al guardar los datos del ticker '{ticker}' en la base de datos."
                 else:
                     # Verificar si el ticker es válido
                     if api_data and api_data.get('status') == 'ERROR':

@@ -43,14 +43,24 @@ class TickerModel:
             
             conn.commit()
 
-    def save_ticker_data(self, ticker: str, data: Dict[str, Any]):
+    def save_ticker_data(self, ticker: str, data: Dict[str, Any]) -> bool:
         """
         Guarda los datos del ticker en la base de datos
         
         Args:
             ticker (str): Símbolo del ticker
             data (Dict[str, Any]): Datos a guardar
+            
+        Returns:
+            bool: True si los datos se guardaron correctamente, False en caso contrario
         """
+        # Validar entrada
+        if not data or not isinstance(data, dict):
+            return False
+            
+        # Validar que existan resultados
+        if not data.get('results') or len(data['results']) == 0:
+            return False
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             
@@ -91,33 +101,40 @@ class TickerModel:
             cursor.execute('SELECT start_date, end_date FROM ticker_ranges WHERE ticker = ?', (ticker,))
             existing_range = cursor.fetchone()
             
-            # Obtener los nuevos timestamps y asegurar que sean enteros
-            timestamp1 = int(data['results'][0]['t'])  # Ya está en milisegundos
-            timestamp2 = int(data['results'][-1]['t'])  # Ya está en milisegundos
-            new_start = min(timestamp1, timestamp2)
-            new_end = max(timestamp1, timestamp2)
-            
-            if existing_range:
-                # Si ya existe un rango, expandirlo si es necesario
-                current_start, current_end = map(int, existing_range)  # Convertir a int
-                final_start = min(int(current_start), int(new_start))
-                final_end = max(int(current_end), int(new_end))
-            else:
-                # Si no existe, usar los nuevos timestamps
-                final_start = int(new_start)
-                final_end = int(new_end)
-            
-            # Actualizar o insertar el rango de fechas
-            cursor.execute('''
-                INSERT OR REPLACE INTO ticker_ranges (ticker, start_date, end_date)
-                VALUES (?, ?, ?)
-            ''', (
-                ticker,
-                final_start,
-                final_end
-            ))
-            
-            conn.commit()
+            try:
+                # Obtener los nuevos timestamps y asegurar que sean enteros
+                results = data['results']
+                timestamp1 = int(results[0]['t'])  # Ya está en milisegundos
+                timestamp2 = int(results[-1]['t'])  # Ya está en milisegundos
+                new_start = min(timestamp1, timestamp2)
+                new_end = max(timestamp1, timestamp2)
+                
+                if existing_range:
+                    # Si ya existe un rango, expandirlo si es necesario
+                    current_start, current_end = map(int, existing_range)  # Convertir a int
+                    final_start = min(int(current_start), int(new_start))
+                    final_end = max(int(current_end), int(new_end))
+                else:
+                    # Si no existe, usar los nuevos timestamps
+                    final_start = int(new_start)
+                    final_end = int(new_end)
+                
+                # Actualizar o insertar el rango de fechas
+                cursor.execute('''
+                    INSERT OR REPLACE INTO ticker_ranges (ticker, start_date, end_date)
+                    VALUES (?, ?, ?)
+                ''', (
+                    ticker,
+                    final_start,
+                    final_end
+                ))
+                
+                conn.commit()
+                return True
+                
+            except (KeyError, IndexError, ValueError) as e:
+                print(f"Error al procesar datos del ticker {ticker}: {str(e)}")
+                return False
 
     def get_ticker_data(self, ticker: str, start_date: str, end_date: str) -> Optional[List[Dict[str, Any]]]:
         """
