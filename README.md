@@ -78,6 +78,20 @@ Esto iniciará la aplicación Streamlit y abrirá automáticamente tu navegador 
 
 - URL Local: http://localhost:8501
 
+## Capturas de Pantalla
+
+### Página Principal (Nueva Consulta)
+![Nueva Consulta](screenshots/nueva_consulta.png)
+En esta vista, los usuarios pueden ingresar un símbolo de ticker (por ejemplo, AAPL) y seleccionar un rango de fechas para analizar los datos históricos de la acción.
+
+### Historial de Consultas
+![Historial](screenshots/historial.png)
+La vista de historial muestra todas las consultas realizadas, permitiendo filtrar por ticker y ver estadísticas globales de las consultas realizadas.
+
+### Mantenimiento de Base de Datos
+![Mantenimiento](screenshots/mantenimiento.png)
+En la sección de mantenimiento, se puede ver un resumen de los datos almacenados, incluyendo el total de tickers, rangos y datos en la base de datos local.
+
 ## Características Principales
 
 ### 1. Página Principal (Nueva Consulta)
@@ -94,13 +108,11 @@ Esto iniciará la aplicación Streamlit y abrirá automáticamente tu navegador 
 - Estadísticas globales de consultas
 - Detalles específicos por ticker y período
 
-
 ### 3. Mantenimiento de Base de Datos
 - Resumen general de datos almacenados
 - Gestión de datos por ticker
 - Funcionalidad de eliminación de datos
 - Estadísticas de almacenamiento
-
 
 ## Estructura del Proyecto
 
