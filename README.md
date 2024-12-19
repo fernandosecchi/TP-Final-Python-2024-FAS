@@ -89,8 +89,9 @@ La vista de historial muestra todas las consultas realizadas, permitiendo filtra
 ### Mantenimiento de Base de Datos
 En la sección de mantenimiento, se puede ver un resumen de los datos almacenados, incluyendo el total de tickers, rangos y datos en la base de datos local.
 
-<video src="video/video.webm" controls>
-Tu navegador no soporta la reproducción de este video.
+<video width="100%" controls>
+  <source src="./video/video.webm" type="video/webm">
+  Your browser does not support the video tag.
 </video>
 
 
