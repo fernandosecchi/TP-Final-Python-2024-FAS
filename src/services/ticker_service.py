@@ -41,13 +41,41 @@ class TickerService:
             
         # Verificar tickers comunes mal escritos
         ticker_corrections = {
-            "APPL": "AAPL",
-            "TSLA": "TSLA",
-            "AMZN": "AMZN",
-            "MSFT": "MSFT"
+            # Empresas tecnológicas
+            "APPL": "AAPL",      # Apple
+            "MCRSFT": "MSFT",    # Microsoft
+            "AMZM": "AMZN",      # Amazon
+            "GOGL": "GOOGL",     # Alphabet (Google)
+            "TSLE": "TSLA",      # Tesla
+            "NVIDA": "NVDA",     # NVIDIA
+            "NETFLX": "NFLX",    # Netflix
+            "ORCLE": "ORCL",     # Oracle
+            "ADOB": "ADBE",      # Adobe
+            "PYPAL": "PYPL",     # PayPal
+
+            # Otras grandes empresas
+            "MCDN": "MCD",       # McDonald's
+            "WLMT": "WMT",       # Walmart
+            "DSNY": "DIS",       # Disney
+            "COKA": "KO",        # Coca-Cola (Error común: "COKA" en vez de KO)
+            "JNJN": "JNJ",       # Johnson & Johnson
+
+            # Sector financiero
+            "VS": "V",           # Visa
+            "MAST": "MA",        # Mastercard
+
+            # Empresas que cambiaron de nombre/ticker
+            "FACEBK": "META",    # Meta (antes Facebook: FB)
+            "GGL": "GOOGL",      # Google en vez de GGL
+
+            # Errores comunes por confusión de vocales o consonantes
+            "INTL": "INTC"       # Intel (confundiendo la C final)
         }
+        
+        # Solo sugerir corrección si el ticker está mal escrito
         if ticker in ticker_corrections:
-            return False, f"¿Quizás quisiste decir '{ticker_corrections[ticker]}'? El ticker '{ticker}' parece estar mal escrito."
+            suggested = ticker_corrections[ticker]
+            return False, f"¿Quizás quisiste decir '{suggested}'? El ticker '{ticker}' parece estar mal escrito."
             
         return True, ""
 
